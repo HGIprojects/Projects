@@ -1,0 +1,85 @@
+
+    System Info
+                Status:   Solver is finished.
+                Product:   Flow Simulation 2018 SP0.0. Build: 3996
+                Computer name:   LAPTOP-9PR9AAI5
+                User name:   Kuruma-sama
+                Processors:   Intel(R) Core(TM) i5-8265U CPU @ 1.60GHz
+                Memory:   8042 MB / 134217727 MB
+                Operating system:   Windows 10 (or higher) (Version 10.0.18363)
+                CAD version:   SOLIDWORKS 2018 SP0.1
+                CPU speed:   1800 (1600) MHz
+
+    General Info
+                Model:   flow_simulation1.SLDPRT
+                Project name:   Project(3)
+                Project path:   C:\Users\Kuruma-sama\Documents\Projects\SolidWorks\Auxiliary\3
+                Units system:   SI (m-kg-s)
+                Analysis type:   External (exclude internal spaces)
+                Exclude cavities without flow conditions :   On
+                Coordinate system:   Global coordinate system
+                Reference axis:   X
+
+    Physical Features
+                Heat conduction in solids:   Off
+                Time dependent:   Off
+                Gravitational effects:   Off
+                Flow type:   Laminar and turbulent
+                High Mach number flow:   Off
+                Humidity:   Off
+                Default roughness:   0 micrometer
+                Default wall conditions:   Adiabatic wall
+
+    Computational Domain
+
+        Size
+                X min:   -0.172 m
+                X max:   0.203 m
+                Y min:   -0.023 m
+                Y max:   0.081 m
+                Z min:   -0.102 m
+                Z max:   0.091 m
+
+    Calculation Mesh
+
+        Basic Mesh Dimensions
+                Number of cells in X:   48
+                Number of cells in Y:   17
+                Number of cells in Z:   24
+
+        Number Of Cells
+                Cells:   19009
+                Fluid cells:   19009
+                Irregular cells:   0
+                Trimmed cells:   0
+                Maximum refinement level:   1
+
+    Goals
+
+        Global Goals
+
+            GG Normal Force (X) 1
+                Type:   Global Goal
+                Goal type:   Normal Force (X)
+                Coordinate system:   Global coordinate system
+                Use in convergence :   On
+
+    Goals
+                
+                Name                    	Unit   	Value    	Progress   	Criteria       	Delta          	Use in convergence 
+                GG Normal Force (X) 1   	N      	-0.680   	100        	0.0241857783   	0.0227398109   	On                 
+
+    General Info
+                Run at:   LAPTOP-9PR9AAI5
+                Number of cores:   8
+                Iterations:   82
+                CPU time:   50 s
+
+        Log
+                Mesh generation started	0:   04:00:56 , Jun 28
+                Mesh generation normally finished	0:   04:00:57 , Jun 28
+                Preparing data for calculation	0:   04:00:58 , Jun 28
+                Calculation started	0:   04:00:58 , Jun 28
+                Calculation has converged since the following criteria are satisfied:	81:   04:01:48 , Jun 28
+                    Goals are converged	81:   
+                Calculation finished	82:   04:01:49 , Jun 28
