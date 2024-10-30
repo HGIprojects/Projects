@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>My Calendar</title>
+	<style>
+		.popup {
+			display: none;
+			position: absolute;
+			background-color: #f9f9f9;
+			border: 1px solid #ccc;
+			padding: 10px;
+			box-shadow: 0 5px 10px rgba(0,0,0,0.1);
+			z-index: 1000;
+		}
+			
+		.popup2 {
+			display: none;
+			position: absolute;
+			background-color: #f9f9f9;
+			border: 1px solid #ccc;
+			padding: 10px;
+			box-shadow: 0 5px 10px rgba(0,0,0,0.1);
+			max-height: 200px;
+			overflow-y: auto;
+			z-index: 1000;
+		}
+		.popup div {
+			padding: 5px;
+			cursor: pointer;
+		}
+		
+		#acceptButton.hidden {
+			display: none;
+		}	
+		
+		.rectangleBackground {
+			background-color: #20B2AA;
+			border-radius: 10px;
+			padding: 20px;
+			max-width: 420px;
+
+		}
+		
+		.backgroundBox {
+			max-width: 400px;
+			background-color: #F5FFFA;
+			border-radius: 10px;
+			padding: 10px;
+
+		}
+		
+		.fontStyle {
+			font-family: calibri;
+			font-size: 16px;
+		}
+		
+	</style>
+</head>
+<body class="fontStyle";>
+
+<h2 id="urlDate"></h2>
+
+<form class="rectangleBackground" id="options" target="_self" method="post">
+    <div class="backgroundBox">
+		<p> Your agenda for this day:</p>
+		<ul id="scheduleContainer"></ul>
+		<br><br><br>
+		<label for="manageAgenda">Choose an action:</label><br><br>
+		<input type="radio" id="modify" name="manageAgenda" value="modifyAgenda">
+		<label for="modify">Modify</label><br>
+		<input type="radio" id="add" name="manageAgenda" value="addNew">
+		<label for="add">Add new</label><br>
+		<input type="radio" id="delete" name="manageAgenda" value="deleteAgenda">
+		<label for="delete">Delete</label><br>
+		<input type="radio" id="exit" name="manageAgenda" value="exitAgenda">
+		<label for="exit">Exit</label><br><br><br>
+		<input type="submit" id="acceptButton" value="Accept"><br><br>
+		
+		<div id="additionalFields"></div>
+
+		<div id="hourContainer" class="hourContainer" onclick="toggleHourPopup(event)"></div>
+		<div id="hourPopup" class="popup"></div>
+		<div id="minuteContainer" class="minuteContainer" onclick="toggleMinutePopup(event)"></div>
+		<div id="minutePopup" class="popup"></div>
+	</div>
+</form>
+
+<script>
+	const url = window.location.href;
+	const urlObj = new URL(url);
+	const params = new URLSearchParams(urlObj.search);
+	const urlYear = params.get('year');
+    const urlMonth = params.get('month');
+    const urlDay = params.get('day');
+	const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];	
+	document.getElementById('urlDate').textContent = `${urlMonth} ${urlDay}, ${urlYear}`;
+
+	document.getElementById("options").onsubmit = function() {
+		if (document.getElementById("exit").checked) {
+			window.location.href = "C:/Users/ghugo/Documents/Onboarding/Ejercicios/HTML/calendar.html"; // Redirect to relative URL
+			return false;
+		}
+		if (document.getElementById("modify").checked) {
+			modifyAppointment();
+			toggleAdditionalFields();
+			return false;
+		}
+		if (document.getElementById("add").checked) {
+			addAppointment();
+			toggleAdditionalFields();
+			return false;
+		}
+		if (document.getElementById("delete").checked) {
+			deleteAppointment();
+			toggleAdditionalFields();
+			return false;
+		}
+	}	
+	
+	
+	function isLeapYear(year) {
+		return ((year % 4 == 0) && (year % 100 !== 0)) || (year % 400 === 0);
+	}
+	// Toggle visibility of additional fields and hide "Accept" button
+	function toggleAdditionalFields() {
+		const additionalFields = document.getElementById('additionalFields');
+		const acceptButton = document.getElementById("acceptButton");
+		additionalFields.style.display = 'block';  // Show the additional fields
+		acceptButton.classList.add('hidden');      // Hide the accept button
+	}
+
+	async function fetchAppointments() {
+		const formData = new FormData();
+		formData.append("urlYear", urlYear);
+		formData.append("urlMonth", urlMonth);
+		formData.append("urlDay", urlDay);
+		for (let hour = 0; hour <= 23; hour++) {  // Adjust the hour range accordingly
+			formData.set("hour", hour);
+			let hourExists = false;
+			try {
+				const response = await fetch("http://localhost:8080/CalendarServlet2DB/CheckDBAppointmentHour", {
+					method: 'POST',
+					body: formData
+				});
+				const data = await response.json();
+				hourExists = data.hourExists;
+				if (hourExists) {
+					for (let minute = 0; minute <= 59; minute++) {  // Adjust minute range as needed
+						let minuteExists = false;
+						formData.set("minute", minute);
+						const minuteResponse = await fetch("http://localhost:8080/CalendarServlet2DB/CheckDBAppointmentMinute", {
+							method: 'POST',
+							body: formData
+						});
+						const minuteData = await minuteResponse.json();
+						let appointmentSqlString = minuteData.appointmentSqlString;
+						let endingHour = minuteData.endingHour;
+						let endingMinute = minuteData.endingMinute;
+						minuteExists = minuteData.minuteExists;
+						if (minuteExists) {
+							minuteExists = false;
+							const hourLi = document.createElement("li");
+							let minuteString = minute.toString();
+							let endingMinuteString = endingMinute.toString();
+							if (minute < 10) {
+								minuteString = "0" + minuteString
+							}
+							if (endingMinute < 10) {
+								endingMinuteString = "0" + endingMinuteString;
+							}
+							let hourString = hour.toString();
+							if (hour < 10) {
+								hourString = "0" + hourString;
+							}
+							let endingHourString = endingHour.toString();
+							if (endingHour < 10) {
+								endingHourString = "0" + endingHourString;
+							}
+							hourLi.textContent = `From: ${hourString}:${minuteString} to ${endingHourString}:${endingMinuteString} - ${appointmentSqlString}`;  // Add more appointment details here
+							hourLi.onclick = function() {
+							};
+							document.getElementById("scheduleContainer").appendChild(hourLi);
+						}
+					}
+				}
+			} catch (error) {
+				console.error("Error fetching data:", error);
+			}
+		}
+	}
+	
+	
+	function addAppointment(){
+		event.preventDefault(); // Prevent the form from submitting
+		const additionalFields = document.getElementById('additionalFields');
+		const now = new Date();
+		const currentHour = now.getHours();
+		const currentMinute = now.getMinutes();
+		additionalFields.innerHTML = ""; // Clear previous fields
+		if (document.getElementById('add').checked) {
+			
+			// Add a label for the dropdown - appointment
+			const textboxLabel = document.createElement("label");
+			textboxLabel.textContent = "Appointment Details:";
+			additionalFields.appendChild(textboxLabel);
+			// Add a textbox - starting time
+			const textbox = document.createElement("input");
+			textbox.type = "text";
+			textbox.placeholder = "Enter details";
+			textbox.id = "appointmentDetails";
+			additionalFields.appendChild(textbox);
+			
+			// Add a break
+			additionalFields.appendChild(document.createElement("br"));
+
+			// Add a label for the dropdown - starting time
+			const dropdownLabel = document.createElement("label");
+			dropdownLabel.textContent = "Appointment time:";
+			additionalFields.appendChild(dropdownLabel);
+			// Add a dropdown list - starting time
+			const dropdownHour = document.createElement("select");
+			dropdownHour.id = "appointmentHour";
+			for (let i = 0; i <= 23; i++) {
+				const option = document.createElement("option");
+				let hourString = i
+				if (i < 10) {
+					hourString = "0" + hourString
+				}
+				option.value = hourString;
+				option.textContent = hourString;
+				if (i === currentHour) { 
+					option.selected = true;
+				}
+				dropdownHour.appendChild(option);
+			}
+			additionalFields.appendChild(dropdownHour);
+
+			// Add a dropdown list - starting minute
+			const dropdownMinute = document.createElement("select");
+			dropdownMinute.id = "appointmentMinute";
+			for (let i = 0; i <= 59; i++) {
+				const option = document.createElement("option");
+				let minuteString = i
+				if (i < 10) {
+					minuteString = "0" + minuteString
+				}
+				option.value = minuteString;
+				option.textContent = minuteString;
+				if (i === currentMinute) { 
+					option.selected = true;
+				}
+				dropdownMinute.appendChild(option);
+			}
+			additionalFields.appendChild(dropdownMinute);
+			
+			// Add a break
+			additionalFields.appendChild(document.createElement("br"));
+			
+			// Add a label for the dropdown
+			const dropdownLabelEnding = document.createElement("label");
+			dropdownLabelEnding.textContent = "Appointment ending time:";
+			additionalFields.appendChild(dropdownLabelEnding);
+			const dropdownEndHour = document.createElement("select");
+			dropdownEndHour.id = "appointmentEndHour";
+			for (let i = 0; i <= 23; i++) {
+				const option = document.createElement("option");
+				let hourStringEnd = i
+				if (i < 10) {
+					hourStringEnd = "0" + hourStringEnd
+				}
+				option.value = hourStringEnd;
+				option.textContent = hourStringEnd;
+				if (i === (currentHour + 1)) { 
+					option.selected = true;
+				}
+				dropdownEndHour.appendChild(option);
+			}
+			additionalFields.appendChild(dropdownEndHour);
+			
+			const dropdownEndMinute = document.createElement("select");
+			dropdownEndMinute.id = "appointmentEndMinute";
+			for (let i = 0; i <= 59; i++) {
+				const option = document.createElement("option");
+				let minuteStringEnd = i
+				if (i < 10) {
+					minuteStringEnd = "0" + minuteStringEnd
+				}
+				option.value = minuteStringEnd;
+				option.textContent = minuteStringEnd;
+				dropdownEndMinute.appendChild(option);
+			}
+			additionalFields.appendChild(dropdownEndMinute);
+						
+			// Add a break
+			additionalFields.appendChild(document.createElement("br"));			
+			
+			// Add Save and Cancel buttons
+			const saveButton = document.createElement("button");
+			saveButton.textContent = "Save";
+			saveButton.type = "button";
+			saveButton.onclick = function() {
+				// Store the values in global variables
+				newAppointmentString = document.getElementById("appointmentDetails").value;
+				newAppointmentHour = document.getElementById("appointmentHour").value;
+				newAppointmentMinute = document.getElementById("appointmentMinute").value;
+				newAppointmentEndHour = document.getElementById("appointmentEndHour").value;
+				newAppointmentEndMinute = document.getElementById("appointmentEndMinute").value;
+				console.log(newAppointmentString);
+				console.log(newAppointmentHour);
+				console.log(newAppointmentMinute);
+				console.log(newAppointmentEndHour);
+				console.log(newAppointmentEndMinute);
+				uploadToDb(newAppointmentString, newAppointmentHour, newAppointmentMinute, newAppointmentEndHour, newAppointmentEndMinute);				
+				// Refresh the page after saving			
+				location.reload();
+			};
+
+			const cancelButton = document.createElement("button");
+			cancelButton.textContent = "Cancel";
+			cancelButton.type = "button";
+			cancelButton.onclick = function() {
+				// Refresh the page to cancel
+				location.reload();
+			};
+
+			// Append buttons to additionalFields
+			additionalFields.appendChild(saveButton);
+			additionalFields.appendChild(cancelButton);
+		}
+	}
+	
+	// Trigger the fetching of appointments on page load
+	window.onload = fetchAppointments;
+
+
+	async function uploadToDb(newAppointmentString, newAppointmentHour, newAppointmentMinute, newAppointmentEndHour, newAppointmentEndMinute){
+		const formDataNew = new FormData();
+		formDataNew.append("newAppointmentYear", urlYear);
+		formDataNew.append("newAppointmentMonth", urlMonth);
+		formDataNew.append("newAppointmentDay", urlDay);
+		formDataNew.append("newAppointmentString", newAppointmentString);
+		formDataNew.append("newAppointmentHour", newAppointmentHour);
+		formDataNew.append("newAppointmentMinute", newAppointmentMinute);
+		formDataNew.append("newAppointmentEndHour", newAppointmentEndHour);
+		formDataNew.append("newAppointmentEndMinute", newAppointmentEndMinute);
+		
+		try {
+			const response = await fetch("http://localhost:8080/CalendarServlet2DB/AppointmentUploader", {
+				method: 'POST',
+				body: formDataNew
+			});
+		} catch (error) {
+				console.error("Error uploading data:", error);
+		}		
+	}
+	
+	async function deleteAppointment() {
+		const formData = new FormData();
+		let appointmentDetailsArray = [];
+		let appointmentsArray = [];
+		let i = 0;
+		let radioCounter = 0;
+		formData.append("urlYear", urlYear);
+		formData.append("urlMonth", urlMonth);
+		formData.append("urlDay", urlDay);
+		for (let hour = 0; hour <= 23; hour++) {  // Adjust the hour range accordingly
+			formData.set("hour", hour);
+			let hourExists = false;
+			try {
+				const response = await fetch("http://localhost:8080/CalendarServlet2DB/CheckDBAppointmentHour", {
+					method: 'POST',
+					body: formData
+				});
+				const data = await response.json();
+				hourExists = data.hourExists;
+				if (hourExists) {
+					for (let minute = 0; minute <= 59; minute++) {  // Adjust minute range as needed
+						let minuteExists = false;
+						formData.set("minute", minute);
+						const minuteResponse = await fetch("http://localhost:8080/CalendarServlet2DB/CheckDBAppointmentMinute", {
+							method: 'POST',
+							body: formData
+						});
+						const minuteData = await minuteResponse.json();
+						let appointmentSqlString = minuteData.appointmentSqlString;
+						let endingHour = minuteData.endingHour;
+						let endingMinute = minuteData.endingMinute;
+						minuteExists = minuteData.minuteExists;
+						if (minuteExists) {
+							minuteExists = false;
+							const radio = document.createElement("input");
+							const radioLabel = document.createElement("label");
+							let minuteString = minute.toString();
+							let endingMinuteString = endingMinute.toString();
+							let endingHourString = endingHour.toString();
+							if (minute < 10) {
+								minuteString = "0" + minuteString
+							}
+							if (endingMinute < 10) {
+								endingMinuteString = "0" + endingMinuteString;
+							}
+							let hourString = hour.toString();
+							if (hour < 10) {
+								hourString = "0" + hourString;
+							}
+							if (endingHour < 10) {
+								endingHourString = "0" + endingHourString;
+							}	
+							radio.type = "radio";
+							radio.name = "appointment";
+							radio.value = i; 
+							radio.id = radioCounter;
+							radioCounter = radioCounter + 1;
+							appointmentDetailsArray = [];
+							appointmentDetailsArray[0] = appointmentSqlString;
+							appointmentDetailsArray[1] = hourString;
+							appointmentDetailsArray[2] = minuteString;
+							appointmentDetailsArray[3] = endingHourString;
+							appointmentDetailsArray[4] = endingMinuteString;
+							appointmentsArray[i] = appointmentDetailsArray;
+							console.log(appointmentDetailsArray[0]);
+							console.log(appointmentDetailsArray[1]);
+							console.log(appointmentDetailsArray[2]);
+							console.log(appointmentDetailsArray[3]);
+							console.log(appointmentDetailsArray[4]);
+							console.log("Now the array of arrays:");
+							console.log(appointmentsArray[i]);
+							i = i + 1;
+							radioLabel.textContent = `From: ${appointmentDetailsArray[1]}:${appointmentDetailsArray[2]} to ${appointmentDetailsArray[3]}:${appointmentDetailsArray[4]} - ${appointmentDetailsArray[0]}`;
+							additionalFields.appendChild(radio);
+							additionalFields.appendChild(radioLabel);
+							additionalFields.appendChild(document.createElement("br"));
+							
+						}
+					}
+				}			
+			} catch (error) {
+				console.error("Error fetching data:", error);
+			}
+		}
+		const deleteButton = document.createElement("button");
+		deleteButton.textContent = "Delete";
+		deleteButton.type = "button";
+		deleteButton.onclick = function() {
+			appointmentDetailsArray = [];
+			const selectedRadio = document.querySelector('input[name="appointment"]:checked');
+			console.log('Selected Radio Value:', selectedRadio.value);
+			if (selectedRadio) {
+				const selectedIndex = parseInt(selectedRadio.value); // Get the index
+				console.log(selectedIndex);
+				const selectedAppointment = appointmentsArray[selectedIndex]; // Access the corresponding appointment
+				console.log(selectedAppointment);
+				// Store the values in global variables
+				deleteAppointmentString = selectedAppointment[0];
+				deleteAppointmentHour = selectedAppointment[1];
+				deleteAppointmentMinute = selectedAppointment[2];
+				deleteAppointmentEndHour = selectedAppointment[3];
+				deleteAppointmentEndMinute = selectedAppointment[4];
+				console.log(deleteAppointmentString);
+				console.log(deleteAppointmentHour);
+				console.log(deleteAppointmentMinute);
+				console.log(deleteAppointmentEndHour);
+				console.log(deleteAppointmentEndMinute);
+				deleteFromDb(deleteAppointmentString, deleteAppointmentHour, deleteAppointmentMinute, deleteAppointmentEndHour, deleteAppointmentEndMinute);
+			
+				console.log(selectedAppointment); // Output the selected appointment details
+				// Refresh the page after saving			
+				location.reload();
+			};
+		}
+		const cancelButton = document.createElement("button");
+		cancelButton.textContent = "Cancel";
+		cancelButton.type = "button";
+		cancelButton.onclick = function() {
+			// Refresh the page to cancel
+			location.reload();
+		};
+		// Append buttons to additionalFields
+		additionalFields.appendChild(deleteButton);
+		additionalFields.appendChild(cancelButton);	
+	}
+	
+	async function deleteFromDb(deleteAppointmentString, deleteAppointmentHour, deleteAppointmentMinute, deleteAppointmentEndHour, deleteAppointmentEndMinute){
+		const formDataDelete = new FormData()
+		
+		console.log("This is what will be deleted from the database:");
+		console.log(urlYear);
+		console.log(urlMonth);
+		console.log(urlDay);
+		console.log(deleteAppointmentString);
+		console.log(deleteAppointmentHour);
+		console.log(deleteAppointmentMinute);
+		console.log(deleteAppointmentEndHour);
+		console.log(deleteAppointmentEndMinute);
+		formDataDelete.append("urlYear", urlYear);
+		formDataDelete.append("urlMonth", urlMonth);
+		formDataDelete.append("urlDay", urlDay);
+		formDataDelete.append("deleteString", deleteAppointmentString);
+		formDataDelete.append("deleteHour", deleteAppointmentHour);
+		formDataDelete.append("deleteMinute", deleteAppointmentMinute);
+		formDataDelete.append("deleteEndHour", deleteAppointmentEndHour);
+		formDataDelete.append("deleteEndMinute", deleteAppointmentEndMinute);
+		try {
+			const response = await fetch("http://localhost:8080/CalendarServlet2DB/AppointmentDeletion", {
+				method: 'POST',
+				body: formDataDelete
+			});
+		} catch (error) {
+				console.error("Error uploading data:", error);
+		}
+		console.log("Deletion completed successfully");
+	}
+	
+	async function modifyAppointment() {
+		event.preventDefault(); // Prevent the form from submitting
+		const formData = new FormData();
+		let appointmentDetailsArray = [];
+		let appointmentsArray = [];
+		let i = 0;
+		let radioCounter = 0;
+		formData.append("urlYear", urlYear);
+		formData.append("urlMonth", urlMonth);
+		formData.append("urlDay", urlDay);
+		for (let hour = 0; hour <= 23; hour++) {  // Adjust the hour range accordingly
+			formData.set("hour", hour);
+			let hourExists = false;
+			try {
+				const response = await fetch("http://localhost:8080/CalendarServlet2DB/CheckDBAppointmentHour", {
+					method: 'POST',
+					body: formData
+				});
+				const data = await response.json();
+				hourExists = data.hourExists;
+				if (hourExists) {
+					for (let minute = 0; minute <= 59; minute++) {  // Adjust minute range as needed
+						let minuteExists = false;
+						formData.set("minute", minute);
+						const minuteResponse = await fetch("http://localhost:8080/CalendarServlet2DB/CheckDBAppointmentMinute", {
+							method: 'POST',
+							body: formData
+						});
+						const minuteData = await minuteResponse.json();
+						let appointmentSqlString = minuteData.appointmentSqlString;
+						let endingHour = minuteData.endingHour;
+						let endingMinute = minuteData.endingMinute;
+						minuteExists = minuteData.minuteExists;
+						if (minuteExists) {
+							minuteExists = false;
+							const radio = document.createElement("input");
+							const radioLabel = document.createElement("label");
+							let minuteString = minute.toString();
+							let endingMinuteString = endingMinute.toString();
+							let endingHourString = endingHour.toString();
+							if (minute < 10) {
+								minuteString = "0" + minuteString
+							}
+							if (endingMinute < 10) {
+								endingMinuteString = "0" + endingMinuteString;
+							}
+							let hourString = hour.toString();
+							if (hour < 10) {
+								hourString = "0" + hourString;
+							}
+							if (endingHour < 10) {
+								endingHourString = "0" + endingHourString;
+							}
+							radio.type = "radio";
+							radio.name = "appointment";
+							radio.value = i; 
+							radio.id = radioCounter;
+							radioCounter = radioCounter + 1;
+							appointmentDetailsArray = [];
+							appointmentDetailsArray[0] = appointmentSqlString;
+							appointmentDetailsArray[1] = hourString;
+							appointmentDetailsArray[2] = minuteString;
+							appointmentDetailsArray[3] = endingHourString;
+							appointmentDetailsArray[4] = endingMinuteString;
+							appointmentsArray[i] = appointmentDetailsArray;
+							console.log(appointmentDetailsArray[0]);
+							console.log(appointmentDetailsArray[1]);
+							console.log(appointmentDetailsArray[2]);
+							console.log(appointmentDetailsArray[3]);
+							console.log(appointmentDetailsArray[4]);
+							console.log("Now the array of arrays:");
+							console.log(appointmentsArray[i]);
+							i = i + 1;
+							radioLabel.textContent = `From: ${appointmentDetailsArray[1]}:${appointmentDetailsArray[2]} to ${appointmentDetailsArray[3]}:${appointmentDetailsArray[4]} - ${appointmentDetailsArray[0]}`;
+							additionalFields.appendChild(radio);
+							additionalFields.appendChild(radioLabel);
+							additionalFields.appendChild(document.createElement("br"));
+							
+						}
+					}
+				}			
+			} catch (error) {
+				console.error("Error fetching data:", error);
+			}
+		}
+		const modifyButton = document.createElement("button");
+		modifyButton.textContent = "Modify";
+		modifyButton.type = "button";
+		modifyButton.onclick = function() {
+			appointmentDetailsArray = [];
+			const selectedRadio = document.querySelector('input[name="appointment"]:checked');
+			console.log('Selected Radio Value:', selectedRadio.value);
+			if (selectedRadio) {
+				const selectedIndex = parseInt(selectedRadio.value); // Get the index
+				console.log(selectedIndex);
+				const selectedAppointment = appointmentsArray[selectedIndex]; // Access the corresponding appointment
+				console.log(selectedAppointment);
+				// Store the values in global variables
+				oldAppointmentString = selectedAppointment[0];
+				oldAppointmentHour = selectedAppointment[1];
+				oldAppointmentMinute = selectedAppointment[2];
+				oldAppointmentEndHour = selectedAppointment[3];
+				oldAppointmentEndMinute = selectedAppointment[4];
+				console.log(oldAppointmentString);
+				console.log(oldAppointmentHour);
+				console.log(oldAppointmentMinute);
+				console.log(oldAppointmentEndHour);
+				console.log(oldAppointmentEndMinute);
+				modifyFromDb(oldAppointmentString, oldAppointmentHour, oldAppointmentMinute, oldAppointmentEndHour, oldAppointmentEndMinute);
+				console.log(selectedAppointment); // Output the selected appointment details
+			};
+		}
+		const cancelButton = document.createElement("button");
+		cancelButton.textContent = "Cancel";
+		cancelButton.type = "button";
+		cancelButton.onclick = function() {
+			// Refresh the page to cancel
+			location.reload();
+		};
+		// Append buttons to additionalFields
+		additionalFields.appendChild(modifyButton);
+		additionalFields.appendChild(cancelButton);	
+	}
+	
+	function modifyFromDb(oldAppointmentString, oldAppointmentHour, oldAppointmentMinute, oldAppointmentEndHour, oldAppointmentEndMinute) {
+//		event.preventDefault(); // Prevent the form from submitting
+		const now = new Date();
+		const currentHour = now.getHours();
+		const currentMinute = now.getMinutes();
+		const currentYear = now.getFullYear();
+		const currentMonth = now.getMonth();
+		const currentDay = now.getDate();
+
+		const formDataModify = new FormData();
+		const additionalFields = document.getElementById('additionalFields');
+		let newYear = urlYear;
+		let newMonth = urlMonth;
+		let newDay = urlDay;
+		let newAppointmentString = oldAppointmentString;
+		let newAppointmentHour = oldAppointmentHour;
+		let newAppointmentMinute = oldAppointmentMinute;
+		let newAppointmentEndHour = oldAppointmentEndHour;
+		let newAppointmentEndMinute = oldAppointmentEndMinute;
+		additionalFields.innerHTML = ""; // Clear previous fields
+		if (document.getElementById('modify').checked) {
+			// Add a label for the dropdown - appointment
+			const textboxLabel = document.createElement("label");
+			textboxLabel.textContent = "New appointment Modification:";
+			additionalFields.appendChild(textboxLabel);
+			// Add a textbox - appointment
+			const textbox = document.createElement("input");
+			textbox.type = "text";
+			textbox.placeholder = "Enter details";
+			textbox.id = "appointmentDetails";
+			additionalFields.appendChild(textbox);
+			
+			// Add a break
+			additionalFields.appendChild(document.createElement("br"));
+
+			// Add a label for the dropdown - year
+			const dropdownLabelYear = document.createElement("label");
+			dropdownLabelYear.textContent = "New appointment year:";
+			additionalFields.appendChild(dropdownLabelYear);
+			// Add a dropdown list - year
+			const dropdownYear = document.createElement("select");
+			dropdownYear.id = "newAppointmentYear";
+			for (let i = 2001; i <= 2050; i++) {
+				const option = document.createElement("option");
+				option.value = i;
+				option.textContent = i;
+				if (i === currentYear) { 
+					option.selected = true;
+				}
+				dropdownYear.appendChild(option);
+			}
+			additionalFields.appendChild(dropdownYear);	
+			
+			// Add a break
+			additionalFields.appendChild(document.createElement("br"));			
+			
+			// Add a label for the dropdown - month
+			const dropdownLabelMonth = document.createElement("label");
+			dropdownLabelMonth.textContent = "New appointment month:";
+			additionalFields.appendChild(dropdownLabelMonth);
+			// Add a label for the dropdown - month
+			const dropdownMonth = document.createElement("select");
+			dropdownMonth.id = "newAppointmentMonth";
+			months.forEach((element, index) => {
+				const option = document.createElement("option");
+				option.value = element;
+				option.textContent = element;
+				if (index === currentMonth) { 
+					option.selected = true;
+				}
+				dropdownMonth.appendChild(option);
+			});
+			additionalFields.appendChild(dropdownMonth);
+
+			// Add a break
+			additionalFields.appendChild(document.createElement("br"));		
+			
+			// Add a label for the dropdown - day
+			const dropdownLabelDay = document.createElement("label");
+			dropdownLabelDay.textContent = "New appointment day:";
+			additionalFields.appendChild(dropdownLabelDay);
+			// Add a dropdown list - day
+			const dropdownDay = document.createElement("select");
+			dropdownDay.id = "newAppointmentDay";
+			for (let i = 1; i <= 31; i++) {
+				const option = document.createElement("option");
+				option.value = i;
+				option.textContent = i;
+				if (i === currentDay) { 
+					option.selected = true;
+				}
+				dropdownDay.appendChild(option);
+			}
+			additionalFields.appendChild(dropdownDay);
+			
+			// Add a break
+			additionalFields.appendChild(document.createElement("br"));
+			
+			// Add a dropdown list
+			const dropdownLabelHour = document.createElement("label");
+			dropdownLabelHour.textContent = "New appointment time:";
+			additionalFields.appendChild(dropdownLabelHour);
+			const dropdownHour = document.createElement("select");
+			dropdownHour.id = "appointmentHour";
+			for (let i = 0; i <= 23; i++) {
+				const option = document.createElement("option");
+				let hourString = i
+				if (i < 10) {
+					hourString = "0" + hourString
+				}
+				option.value = hourString;
+				option.textContent = hourString;
+				if (i === currentHour) { 
+					option.selected = true;
+				}
+				dropdownHour.appendChild(option);
+			}
+			additionalFields.appendChild(dropdownHour);
+			
+			// Add a dropdown list
+			const dropdownMinute = document.createElement("select");
+			dropdownMinute.id = "appointmentMinute";
+			for (let i = 0; i <= 59; i++) {
+				const option = document.createElement("option");
+				let minuteString = i
+				if (i < 10) {
+					minuteString = "0" + minuteString
+				}
+				option.value = minuteString;
+				option.textContent = minuteString;
+				if (i === currentMinute) { 
+					option.selected = true;
+				}
+				dropdownMinute.appendChild(option);
+			}
+			additionalFields.appendChild(dropdownMinute);
+			
+			// Add a break
+			additionalFields.appendChild(document.createElement("br"));
+			
+			// Add a label for the dropdown
+			const dropdownLabelEnding = document.createElement("label");
+			dropdownLabelEnding.textContent = "Appointment ending time:";
+			additionalFields.appendChild(dropdownLabelEnding);
+			const dropdownEndHour = document.createElement("select");
+			dropdownEndHour.id = "appointmentEndHour";
+			for (let i = 0; i <= 23; i++) {
+				const option = document.createElement("option");
+				let hourStringEnd = i
+				if (i < 10) {
+					hourStringEnd = "0" + hourStringEnd
+				}
+				option.value = hourStringEnd;
+				option.textContent = hourStringEnd;
+				if (i === (currentHour + 1)) { 
+					option.selected = true;
+				}
+				dropdownEndHour.appendChild(option);
+			}
+			additionalFields.appendChild(dropdownEndHour);
+			
+			const dropdownEndMinute = document.createElement("select");
+			dropdownEndMinute.id = "appointmentEndMinute";
+			for (let i = 0; i <= 59; i++) {
+				const option = document.createElement("option");
+				let minuteStringEnd = i
+				if (i < 10) {
+					minuteStringEnd = "0" + minuteStringEnd
+				}
+				option.value = minuteStringEnd;
+				option.textContent = minuteStringEnd;
+				dropdownEndMinute.appendChild(option);
+			}
+			additionalFields.appendChild(dropdownEndMinute);
+						
+			// Add a break
+			additionalFields.appendChild(document.createElement("br"));		
+			const saveButton = document.createElement("button");
+			saveButton.textContent = "Save";
+			saveButton.type = "button";			
+			const cancelButton = document.createElement("button");
+			cancelButton.textContent = "Cancel";
+			cancelButton.type = "button";			
+			
+			// Append buttons to additionalFields
+			additionalFields.appendChild(saveButton);
+			additionalFields.appendChild(cancelButton);
+			console.log("This is what will be modified from the database:");
+			console.log(urlYear);
+			console.log(urlMonth);
+			console.log(urlDay);
+			console.log(oldAppointmentString);
+			console.log(oldAppointmentHour);
+			console.log(oldAppointmentMinute);
+			console.log(oldAppointmentEndHour);
+			console.log(oldAppointmentEndMinute);
+			
+			formDataModify.append("urlYear", urlYear);
+			formDataModify.append("urlMonth", urlMonth);
+			formDataModify.append("urlDay", urlDay);
+			formDataModify.append("oldString", oldAppointmentString);
+			formDataModify.append("oldHour", oldAppointmentHour);
+			formDataModify.append("oldMinute", oldAppointmentMinute);
+			formDataModify.append("oldEndHour", oldAppointmentEndHour);
+			formDataModify.append("oldEndMinute", oldAppointmentEndMinute);
+
+			saveButton.onclick = async function() {
+				// Store the values in global variables
+				newYear = document.getElementById("newAppointmentYear").value;
+				newMonth = document.getElementById("newAppointmentMonth").value;
+				newDay = document.getElementById("newAppointmentDay").value;
+				newAppointmentString = document.getElementById("appointmentDetails").value;
+				newAppointmentHour = document.getElementById("appointmentHour").value;
+				newAppointmentMinute = document.getElementById("appointmentMinute").value;
+				newAppointmentEndHour = document.getElementById("appointmentEndHour").value;
+				newAppointmentEndMinute = document.getElementById("appointmentEndMinute").value;
+				if ((newMonth == months[1]) && (newDay > 29)) {
+					alert("Incorrect date input, " + months[1] + " doesn't have that many days!");
+					location.reload();
+				} else {
+					if ((isLeapYear(newYear) == false) && (newMonth == months[1]) && (newDay == 29)) {
+							alert("Incorrect date input, " + newYear + " is not a leap year!");
+							location.reload();
+					} else {
+						if ((newDay == 31) && (newMonth == months[3] || newMonth == months[5] || newMonth == months[8] || newMonth == months[10])) {
+							alert("Incorrect date input, " + newMonth + " does not have 31 days!");    
+							location.reload();
+						} else {					
+							console.log("Updated data to be sent: ");
+							console.log(newYear);
+							console.log(newMonth);
+							console.log(newDay);
+							console.log(newAppointmentString);
+							console.log(newAppointmentHour);
+							console.log(newAppointmentMinute);
+							console.log(newAppointmentEndHour);
+							console.log(newAppointmentEndMinute);
+							formDataModify.append("newAppointmentYear", newYear);
+							formDataModify.append("newAppointmentMonth", newMonth);
+							formDataModify.append("newAppointmentDay", newDay);
+							formDataModify.append("newAppointmentString", newAppointmentString);
+							formDataModify.append("newAppointmentHour", newAppointmentHour);
+							formDataModify.append("newAppointmentMinute", newAppointmentMinute);
+							formDataModify.append("newAppointmentEndHour", newAppointmentEndHour);
+							formDataModify.append("newAppointmentEndMinute", newAppointmentEndMinute);				
+							try {
+								const response = await fetch("http://localhost:8080/CalendarServlet2DB/AppointmentModification", {
+									method: 'POST',
+									body: formDataModify
+								});
+								console.log("Modification completed successfully");
+								location.reload();
+							} catch (error) {
+										console.error("Error modifying data:", error);
+							}				
+							
+						}
+					}
+				}
+			}
+			cancelButton.onclick = function() {
+				// Refresh the page to cancel
+				location.reload();
+			}
+		}		
+	};
+
+
+	
+
+			
+	
+	
+	
+	
+</script>
+</body>
+</html>
