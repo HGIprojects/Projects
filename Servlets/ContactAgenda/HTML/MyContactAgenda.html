@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>My Agenda</title>
+	<style>
+		.container {
+			display: flex;
+			flex-wrap: wrap;
+			width: 99%;
+			height: auto;
+			padding: 15px;
+			background-color: #7dc7b4;
+			border-radius: 5px;
+
+		}
+		
+		.leftPanel {
+			background-color: #98e9d4;
+			width: 25%;
+			margin: 3px;
+			padding: 5px;
+		}
+		
+		.centralPanel {
+			background-color: #98e9d4;
+			width: 50%;
+			margin: 3px;
+			padding: 5px;
+		}
+		
+		.rightPanel {
+			flex-direction: column;
+			background-color: #98e9d4;
+			width: 15%;
+			margin: 3px;
+			padding: 5px;
+		}
+		
+		.box {
+			flex: 1;
+			margin: 10px;
+			padding: 10px;
+			border: 1px solid black;
+			display: grid;
+			align-items: center;
+			justify-content: left;
+			background-color: #d7d7d7;
+			
+		}
+		
+		.buttonPress {
+			width: 90%;
+			margin: 10px;
+			padding: 10px;
+			border: 1px solid black;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			background-color: #d7d7d7;
+		
+		}
+		
+		.hidden {
+			display: none;
+		}
+		
+		.showContactField {
+			display: block;
+		}
+		
+	</style>
+</head>
+<body>
+	<div class="container">
+		<div class="leftPanel" id="sidePanelLeft">Contact list
+
+
+		</div>
+		<div class="centralPanel" id="middlePanel">Contact card
+			<div class="box" id="contactCard">Contacts will be displayed here. <br/><br/>
+			Please select a contact from the list on the left to display its information.</div>
+			<!-- <br/><br/><div id="contactCardSpace"></div> -->
+		</div>
+		<div class="rightPanel" id="options">Options
+			<button class="buttonPress" id="createButton" onclick="handleCreate()">Create new contact<br/></button>
+			<button class="buttonPress" id="modifyButton" onclick="handleModify()">Modify contact<br/></button>
+			<button class="buttonPress" id="deleteButton" onclick="handleDelete()">Delete contact<br/></button>
+
+		</div>
+		
+	</div>
+<script>
+	var jsonArray = [];
+	let globalContact = null;
+	displayContacts();
+	
+	function handleDelete() {
+		hideContactCard();
+		deleteDb();
+		return false; 
+	}
+	
+	function handleModify() {
+		hideContactCard();
+		modifyContact();
+		return false; 
+	}
+	
+	function handleCreate() {
+		hideContactCard();
+		createContact();
+		return false; 
+	}
+	
+	function hideContactCard() {
+		const contactCard = document.getElementById("contactCard");
+		if (contactCard){
+			contactCard.classList.add("hidden");      // Apply the .hidden style to the contact card
+		}
+	}
+	
+	function hideContactField() {
+		const contactCardField = document.getElementById("contactCardSpace");
+		if (contactCardField){
+			contactCardField.classList.add("hidden");      // Apply the .hidden style to the contact card
+		}
+	}
+	
+	function showContactCard() {
+		const contactCard = document.getElementById("contactCard");
+		if (!contactCard){
+			contactCard.classList.add("showContactField");      // Apply the .visible style to the contact card
+		}
+	}
+	
+
+	function deleteBox(){
+		if(document.getElementById("fetchedContact")){
+			document.getElementById("fetchedContact").remove();
+			globalContact = null;
+		} else { console.error("No hay ninguna caja para eliminar");}
+	}
+	
+	
+	function createContactCardSpace(){
+		const cardSpace = document.createElement("div");
+		//cardSpace.classList.add("box");
+		cardSpace.id = "contactCardSpace";
+		document.getElementById("middlePanel").appendChild(cardSpace);
+
+	}
+	
+	/*function getContactList(){
+		fetch("http://localhost:8080/ContactsAgenda/CheckDBContact")
+			.then(response ==> response.json())
+			.then(data ==> {
+				const contactList = document.getElementById("contactList");
+				contactList.innerHTML = "";
+				data.forEach(item ==> {
+					const contactDiv = document.createElement("div");
+					contactDiv.textContent = `${postalCode.list}`;
+					contactDiv.textContent = `${address.list}`;
+					contactDiv.textContent = `${company.list}`;
+					contactDiv.textContent = `${lastName.list}`;
+					contactDiv.textContent = `${firstName.list}`;
+					contactDiv.textContent = `${phone.list}`;
+					contactDiv.apprendChild(document.createElement("br"));
+					contactList.appendChild(contactDiv);
+				});
+			})
+			.catch(error ==> console.error("Error: ", error));
+	}*/
+	
+	
+	async function displayContacts() {
+		try {
+			const response = await fetch("http://localhost:8080/ContactsAgenda/CheckDBContact", {
+				method: "GET",
+				headers: {
+					"Content-Type": "application/json"
+				}
+			});
+
+			if (!response.ok) {
+				throw new Error(`HTTP error! Status: ${response.status}`);
+			}
+
+			jsonArray = await response.json();
+			const leftPanel = document.getElementById("sidePanelLeft");
+
+			if (jsonArray && jsonArray.length > 0) {
+				jsonArray.forEach(contact => {
+					const smallContact = document.createElement("div");
+					smallContact.classList.add("box");
+					smallContact.innerHTML = `
+					<span>Company: ${contact.companyDB}</span>
+					<span>Last Name: ${contact.lastNameDB}</span>
+					<span>Telephone: ${contact.telephoneDB}</span>
+					`;
+					console.log(contact);
+					smallContact.addEventListener("click", () => {
+						globalContact = contact;
+						fetchContactCard();
+					});
+					leftPanel.appendChild(smallContact);
+				});
+			} else {
+				leftPanel.innerHTML = "<p>No contacts available.</p>";
+			}
+		} catch (error) {
+			console.error("Error fetching contacts:", error);
+		}
+	}
+
+	function fetchContactCard() {
+		const previousContact = document.getElementById("fetchedContact");
+		if (previousContact){
+			previousContact.remove();
+		} else {console.error("No previous contact to delete");}
+		while (middlePanel.firstChild){
+			middlePanel.removeChild(middlePanel.firstChild);
+		}
+		const fullContact = document.createElement("div");
+		fullContact.classList.add("box");
+		fullContact.id = "fetchedContact";
+		fullContact.innerHTML = `
+			<span>Postal Code: ${globalContact.postalCodeDB}</span>
+			<span>Address: ${globalContact.addressDB}</span>
+			<span>Company: ${globalContact.companyDB}</span>
+			<span>Last Name: ${globalContact.lastNameDB}</span>
+			<span>First Name: ${globalContact.firstNameDB}</span>
+			<span>Telephone: ${globalContact.telephoneDB}</span>
+		`;
+		document.getElementById("middlePanel").appendChild(fullContact);
+	}
+
+
+	/*async function fetchContactCard() {
+		const previousContact = document.getElementById("fetchedContact");
+		if (previousContact){
+				previousContact.remove();
+			} else {console.error("No previous contact to delete");}
+		while (middlePanel.firstChild){
+				middlePanel.removeChild(middlePanel.firstChild);
+			}
+		const panelMiddle = document.getElementById("middlePanel");
+		const bigContact = document.createElement("div");
+		bigContact.classList.add("box");
+		bigContact.innerHTML = `
+			<p>Company: ${contact.companyDB}</p>
+			<p>Last Name: ${contact.lastNameDB}</p>
+			<p>Telephone: ${contact.telephoneDB}</p>
+		`;
+		console.log(contact);
+		panelMiddle.appendChild(smallContact);
+		}
+	*/
+	
+/*
+	async function contactCardTest() {
+		const previousContact = document.getElementById("fetchedContact");
+		if (previousContact){
+			previousContact.remove();
+		} else {console.error("No previous contact to delete");}
+		while (middlePanel.firstChild){
+			middlePanel.removeChild(middlePanel.firstChild);
+		}
+			const contactDiv = document.createElement("div");
+			contactDiv.classList.add("box");
+			contactDiv.id = "fetchedContact";
+			contactDiv.appendChild(document.createTextNode("Postal code: 536-0025"));
+			contactDiv.appendChild(document.createElement("br"));
+			contactDiv.appendChild(document.createTextNode("Address: Morinomiya 2-6-641"));
+			contactDiv.appendChild(document.createElement("br"));			
+			contactDiv.appendChild(document.createTextNode("Company: TuMecaDo"));
+			contactDiv.appendChild(document.createElement("br"));
+			contactDiv.appendChild(document.createTextNode("Last name: Garcia"));
+			contactDiv.appendChild(document.createElement("br"));
+			contactDiv.appendChild(document.createTextNode("First name: Hugo"));
+			contactDiv.appendChild(document.createElement("br"));
+			contactDiv.appendChild(document.createTextNode("Telephone: 346-7035-1884"));
+			contactDiv.appendChild(document.createElement("br"));
+
+			document.getElementById("middlePanel").appendChild(contactDiv);
+
+	}
+	*/
+		
+	function createContact(){
+		//event.preventDefault(); // Prevent the form from submitting
+		createContactCardSpace();
+		deleteBox();
+		const contactCardField = document.getElementById("contactCardSpace");
+		if (contactCardField) {
+			console.log("contactCardField si existe");
+			contactCardField.innerHTML = ""; // Clear previous fields
+		} else {
+			console.log("contactCardField no existe");
+		}
+
+			//if (document.getElementById("modifyButton").onclick) {
+			
+			// Add a label for the the postal code
+			const postalCodeLabel = document.createElement("label");
+			postalCodeLabel.textContent = "New postal code:";
+			postalCodeLabel.setAttribute("for", "postalCodeDetails"); // Associate label with input
+			contactCardField.appendChild(postalCodeLabel);
+			// Add a postal code box
+			const postalCodeBox = document.createElement("input");
+			postalCodeBox.type = "text";
+			postalCodeBox.placeholder = "✕〇✕―✕〇✕〇";
+			postalCodeBox.id = "postalCodeDetails";
+			contactCardField.appendChild(postalCodeBox);
+			
+			// Add a break
+			contactCardField.appendChild(document.createElement("br"));	
+			
+			// Add a label for the the address
+			const addressLabel = document.createElement("label");
+			addressLabel.textContent = "New address:";
+			addressLabel.setAttribute("for", "addressDetails"); // Associate label with input
+			contactCardField.appendChild(addressLabel);
+			// Add a addressBox
+			const addressBox = document.createElement("input");
+			addressBox.type = "text";
+			addressBox.placeholder = "123 Shippity McShip Street, Boatinson, Pinta, Niña and Santa Maria building";
+			addressBox.id = "addressDetails";
+			contactCardField.appendChild(addressBox);
+			
+			// Add a break
+			contactCardField.appendChild(document.createElement("br"));	
+			
+			// Add a label for the the company
+			const companyLabel = document.createElement("label");
+			companyLabel.textContent = "New company:";
+			companyLabel.setAttribute("for", "companyDetails"); // Associate label with input
+			contactCardField.appendChild(companyLabel);
+			// Add a companyBox
+			const companyBox = document.createElement("input");
+			companyBox.type = "text";
+			companyBox.placeholder = "Boaty McBoat Inc.";
+			companyBox.id = "companyDetails";
+			contactCardField.appendChild(companyBox);
+			
+			// Add a break
+			contactCardField.appendChild(document.createElement("br"));	
+			
+			// Add a label for the the last name
+			const lastNameLabel = document.createElement("label");
+			lastNameLabel.textContent = "New last name:";
+			lastNameLabel.setAttribute("for", "lastNameDetails"); // Associate label with input
+			contactCardField.appendChild(lastNameLabel);
+			// Add a lastNameBox
+			const lastNameBox = document.createElement("input");
+			lastNameBox.type = "text";
+			lastNameBox.placeholder = "Doe";
+			lastNameBox.id = "lastNameDetails";
+			contactCardField.appendChild(lastNameBox);
+			
+			// Add a break
+			contactCardField.appendChild(document.createElement("br"));	
+			
+			// Add a label for the the first name
+			const firstNameLabel = document.createElement("label");
+			firstNameLabel.textContent = "New first name:";			
+			firstNameLabel.setAttribute("for", "firstNameDetails"); // Associate label with input		
+			contactCardField.appendChild(firstNameLabel);
+			// Add a firstNameBox
+			const firstNameBox = document.createElement("input");
+			firstNameBox.type = "text";
+			firstNameBox.placeholder = "John";
+			firstNameBox.id = "firstNameDetails";
+			contactCardField.appendChild(firstNameBox);
+			
+			// Add a break
+			contactCardField.appendChild(document.createElement("br"));	
+			
+			// Add a label for the the phone number
+			const telephoneLabel = document.createElement("label");
+			telephoneLabel.textContent = "New telephone number:";
+			telephoneLabel.setAttribute("for", "phoneDetails"); // Associate label with input
+			contactCardField.appendChild(telephoneLabel);
+			// Add a telephoneBox
+			const telephoneBox = document.createElement("input");
+			telephoneBox.type = "text";
+			telephoneBox.placeholder = "✕〇✕―✕〇✕〇―✕〇✕〇";
+			telephoneBox.id = "phoneDetails";
+			contactCardField.appendChild(telephoneBox);
+			
+			// Add a break
+			contactCardField.appendChild(document.createElement("br"));	
+			
+			
+			// Add Save and Cancel buttons
+			const saveButton = document.createElement("button");
+			saveButton.textContent = "Save";
+			saveButton.type = "button";
+			saveButton.onclick = function() {
+				// Store the values in global variables
+				newPostalCode = document.getElementById("postalCodeDetails").value;
+				newAddress = document.getElementById("addressDetails").value;
+				newCompany = document.getElementById("companyDetails").value;
+				newLastName = document.getElementById("lastNameDetails").value;
+				newFirstName = document.getElementById("firstNameDetails").value;
+				newPhone = document.getElementById("phoneDetails").value;
+				console.log("Information to be uploaded:");
+				console.log(newPostalCode);
+				console.log(newAddress);
+				console.log(newCompany);
+				console.log(newLastName);
+				console.log(newFirstName);
+				console.log(newPhone);
+				uploadToDb(newPostalCode, newAddress, newCompany, newLastName, newFirstName, newPhone);				
+				// Refresh the page after saving			
+				location.reload();
+			};
+
+			const cancelButton = document.createElement("button");
+			cancelButton.textContent = "Cancel";
+			cancelButton.type = "button";
+			cancelButton.onclick = function() {
+				// delete the contact fields
+				hideContactField();
+				hideContactCard();
+				showContactCard();
+				location.reload();
+			};
+
+			// Append buttons to contactCardField
+			contactCardField.appendChild(saveButton);
+			contactCardField.appendChild(cancelButton);
+		//}
+	}
+	
+	function modifyContact(){
+		if (globalContact != null) {	
+			
+			//event.preventDefault(); // Prevent the form from submitting
+			createContactCardSpace();
+			const contactCardField = document.getElementById("contactCardSpace");
+			//document.getElementById("contactCard").appendChild(contactCardField);
+			//contactCardField.classList.add("box");
+			if (contactCardField) {
+				console.log("contactCardField si existe");
+				contactCardField.innerHTML = ""; // Clear previous fields
+			} else {
+				console.log("contactCardField no existe");
+			}
+
+				//if (document.getElementById("modifyButton").onclick) {
+				
+				// Add a label for the the postal code
+				const postalCodeLabel = document.createElement("label");
+				postalCodeLabel.textContent = "Postal code:";
+				postalCodeLabel.setAttribute("for", "postalCodeDetails"); // Associate label with input
+				contactCardField.appendChild(postalCodeLabel);
+				// Add a postal code box
+				const postalCodeBox = document.createElement("input");
+				postalCodeBox.type = "text";
+				postalCodeBox.placeholder = "✕〇✕―✕〇✕〇";
+				postalCodeBox.id = "postalCodeDetails";
+				contactCardField.appendChild(postalCodeBox);
+				
+				// Add a break
+				contactCardField.appendChild(document.createElement("br"));	
+				
+				// Add a label for the the address
+				const addressLabel = document.createElement("label");
+				addressLabel.textContent = "Address:";
+				addressLabel.setAttribute("for", "addressDetails"); // Associate label with input
+				contactCardField.appendChild(addressLabel);
+				// Add a addressBox
+				const addressBox = document.createElement("input");
+				addressBox.type = "text";
+				addressBox.placeholder = "123 Shippity McShip Street, Boatinson, Pinta, Niña and Santa Maria building";
+				addressBox.id = "addressDetails";
+				contactCardField.appendChild(addressBox);
+				
+				// Add a break
+				contactCardField.appendChild(document.createElement("br"));	
+				
+				// Add a label for the the company
+				const companyLabel = document.createElement("label");
+				companyLabel.textContent = "Company:";
+				companyLabel.setAttribute("for", "companyDetails"); // Associate label with input
+				contactCardField.appendChild(companyLabel);
+				// Add a companyBox
+				const companyBox = document.createElement("input");
+				companyBox.type = "text";
+				companyBox.placeholder = "Boaty McBoat Inc.";
+				companyBox.id = "companyDetails";
+				contactCardField.appendChild(companyBox);
+				
+				// Add a break
+				contactCardField.appendChild(document.createElement("br"));	
+				
+				// Add a label for the the last name
+				const lastNameLabel = document.createElement("label");
+				lastNameLabel.textContent = "Last name:";
+				lastNameLabel.setAttribute("for", "lastNameDetails"); // Associate label with input
+				contactCardField.appendChild(lastNameLabel);
+				// Add a lastNameBox
+				const lastNameBox = document.createElement("input");
+				lastNameBox.type = "text";
+				lastNameBox.placeholder = "Doe";
+				lastNameBox.id = "lastNameDetails";
+				contactCardField.appendChild(lastNameBox);
+				
+				// Add a break
+				contactCardField.appendChild(document.createElement("br"));	
+				
+				// Add a label for the the first name
+				const firstNameLabel = document.createElement("label");
+				firstNameLabel.textContent = "First name:";			
+				firstNameLabel.setAttribute("for", "firstNameDetails"); // Associate label with input		
+				contactCardField.appendChild(firstNameLabel);
+				// Add a firstNameBox
+				const firstNameBox = document.createElement("input");
+				firstNameBox.type = "text";
+				firstNameBox.placeholder = "John";
+				firstNameBox.id = "firstNameDetails";
+				contactCardField.appendChild(firstNameBox);
+				
+				// Add a break
+				contactCardField.appendChild(document.createElement("br"));	
+				
+				// Add a label for the the phone number
+				const telephoneLabel = document.createElement("label");
+				telephoneLabel.textContent = "Telephone number:";
+				telephoneLabel.setAttribute("for", "phoneDetails"); // Associate label with input
+				contactCardField.appendChild(telephoneLabel);
+				// Add a telephoneBox
+				const telephoneBox = document.createElement("input");
+				telephoneBox.type = "text";
+				telephoneBox.placeholder = "✕〇✕―✕〇✕〇―✕〇✕〇";
+				telephoneBox.id = "phoneDetails";
+				contactCardField.appendChild(telephoneBox);
+				
+				// Add a break
+				contactCardField.appendChild(document.createElement("br"));	
+				
+				
+				// Add Save and Cancel buttons
+				const saveButton = document.createElement("button");
+				saveButton.textContent = "Save";
+				saveButton.type = "button";
+				saveButton.onclick = function() {
+					// Store the values in global variables
+					modPostalCode = document.getElementById("postalCodeDetails").value;
+					modAddress = document.getElementById("addressDetails").value;
+					modCompany = document.getElementById("companyDetails").value;
+					modLastName = document.getElementById("lastNameDetails").value;
+					modFirstName = document.getElementById("firstNameDetails").value;
+					modPhone = document.getElementById("phoneDetails").value;
+					console.log("Information to be uploaded:");
+					console.log(modPostalCode);
+					console.log(modAddress);
+					console.log(modCompany);
+					console.log(modLastName);
+					console.log(modFirstName);
+					console.log(modPhone);
+					modifyDb(modPostalCode, modAddress, modCompany, modLastName, modFirstName, modPhone);				
+					// Refresh the page after saving			
+					location.reload();
+				};
+
+				const cancelButton = document.createElement("button");
+				cancelButton.textContent = "Cancel";
+				cancelButton.type = "button";
+				cancelButton.onclick = function() {
+					// delete the contact fields
+					hideContactField();
+					hideContactCard();
+					showContactCard();
+					location.reload();
+				};
+
+				// Append buttons to contactCardField
+				contactCardField.appendChild(saveButton);
+				contactCardField.appendChild(cancelButton);
+			//}
+		} else {
+				console.error("No contact selected");
+				alert("No contact selected");
+
+		}
+	}
+	
+	
+	async function uploadToDb(newPostalCode, newAddress, newCompany, newLastName, newFirstName, newPhone){
+		const formDataNew = new FormData();
+		formDataNew.append("newPostalCode", newPostalCode);
+		formDataNew.append("newAddress", newAddress);
+		formDataNew.append("newCompany", newCompany);
+		formDataNew.append("newLastName", newLastName);
+		formDataNew.append("newFirstName", newFirstName);
+		formDataNew.append("newPhone", newPhone);
+		
+		try {
+			const response = await fetch("http://localhost:8080/ContactsAgenda/NewDBContact", {
+				method: "POST",
+				body: formDataNew
+			});
+			console.log("New contact uploaded successfully");
+		} catch (error) {
+				console.error("Error uploading data:", error);
+		}		
+	}
+	
+	async function modifyDb(modPostalCode, modAddress, modCompany, modLastName, modFirstName, modPhone){
+		
+		const formDataModify = new FormData();
+			formDataModify.append("oldCompany", globalContact.companyDB);
+			formDataModify.append("oldPostalCode", globalContact.postalCodeDB);
+			formDataModify.append("oldAddress", globalContact.addressDB);
+			formDataModify.append("oldPhone", globalContact.telephoneDB);
+			formDataModify.append("oldLastName", globalContact.lastNameDB);
+			formDataModify.append("oldFirstName", globalContact.firstNameDB);
+			formDataModify.append("modifiedPostalCode", modPostalCode);
+			formDataModify.append("modifiedAddress", modAddress);
+			formDataModify.append("modifiedCompany", modCompany);
+			formDataModify.append("modifiedLastName", modLastName);
+			formDataModify.append("modifiedFirstName", modFirstName);
+			formDataModify.append("modifiedPhone", modPhone);			
+
+			try {
+				const response = await fetch("http://localhost:8080/ContactsAgenda/ModifyDBContact", {
+					method: "POST",
+					body: formDataModify
+				});
+				console.log("Contact modified successfully");
+				globalContact == null;
+			} catch (error) {
+					console.error("Error uploading data:", error);
+					location.reload();
+			}	
+
+	}
+	
+	async function deleteDb() {
+		
+		if (globalContact != null) {	
+
+			const formDataDelete = new FormData();
+			
+			formDataDelete.append("deleteCompany", globalContact.companyDB);
+			formDataDelete.append("deletePostalCode", globalContact.postalCodeDB);
+			formDataDelete.append("deleteAddress", globalContact.addressDB);
+			formDataDelete.append("deleteTelephone", globalContact.telephoneDB);
+			formDataDelete.append("deleteLastName", globalContact.lastNameDB);
+			formDataDelete.append("deleteFirstName", globalContact.firstNameDB);
+			
+			try {
+				const response = await fetch("http://localhost:8080/ContactsAgenda/DeleteDBContact", {
+					method: "POST",
+					body: formDataDelete
+				});
+				console.log("Contact deleted successfully");
+				location.reload();
+
+			} catch (error) {
+					console.error("Error deleting data:", error);
+					alert("Error deleting data");
+					location.reload();
+
+			} 
+		} else {
+		console.error("No contact selected");
+		alert("No contact selected");
+		}
+	}
+</script>
+</body>
+</html>
